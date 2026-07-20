@@ -18,19 +18,19 @@ from trl import SFTTrainer, SFTConfig
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # ==========================================
-# 1. High-Performance GPU Fine-Tuning Config
+# 1. Fast CPU/GPU Fine-Tuning Config
 # ==========================================
 MODEL_NAME = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
 OUTPUT_DIR = "./finetuned_qwen_lora"
 DATASET_PATH = "sample"
 
 def main():
-    print(f"[+] [GPU-Opt] Starting High-Performance LoRA Fine-Tuning: {MODEL_NAME}", flush=True)
+    print(f"[+] Starting Fast LoRA Fine-Tuning Pipeline: {MODEL_NAME}", flush=True)
 
     # ==========================================
     # 2. Load Tokenizer & Model
     # ==========================================
-    print("[+] Step 1: Loading Tokenizer & Model for execution...", flush=True)
+    print("[+] Step 1: Loading Tokenizer & Model into memory...", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL_NAME,
         trust_remote_code=True,
@@ -48,7 +48,7 @@ def main():
         torch_dtype = torch.float16
         use_cpu = False
     else:
-        print("[!] No GPU detected. Running on CPU mode.", flush=True)
+        print("[!] Running in Fast CPU Mode...", flush=True)
         device_map = {"": "cpu"}
         torch_dtype = torch.float32
         use_cpu = True
@@ -60,16 +60,16 @@ def main():
         trust_remote_code=True
     )
 
-    print("[+] Model & Tokenizer loaded into memory successfully!", flush=True)
+    print("[+] Model & Tokenizer loaded successfully!", flush=True)
 
     # ==========================================
     # 3. Configure LoRA (PEFT)
     # ==========================================
     print("[+] Step 2: Applying LoRA Target Adapter Configuration...", flush=True)
     peft_config = LoraConfig(
-        r=16,                          # Rank of LoRA matrix updates
-        lora_alpha=32,                 # Scaling alpha
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        r=8,                           # Fast rank
+        lora_alpha=16,
+        target_modules=["q_proj", "v_proj"],
         lora_dropout=0.05,
         bias="none",
         task_type=TaskType.CAUSAL_LM
@@ -89,18 +89,14 @@ def main():
     else:
         sample_data = {
             "instruction": [
-                "Write a Python function for Fibonacci series with memoization.",
-                "Create a production-ready REST API endpoint using FastAPI with Pydantic validation.",
-                "Write a function to check if a string is a palindrome ignoring non-alphanumeric characters.",
-                "Implement a binary search algorithm in Python with time complexity analysis.",
-                "Write a Python script to merge two sorted lists into one sorted list."
+                "Write a Python function for Fibonacci series.",
+                "Create a REST API endpoint using FastAPI.",
+                "Write a function to check if a string is a palindrome."
             ],
             "response": [
-                "```python\ndef fib(n, memo={}):\n    if n in memo: return memo[n]\n    if n <= 1: return n\n    memo[n] = fib(n-1, memo) + fib(n-2, memo)\n    return memo[n]\n```",
-                "```python\nfrom fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel\napp = FastAPI()\nclass Item(BaseModel):\n    id: int\n    name: str\n@app.post('/items')\ndef create_item(item: Item):\n    return {'status': 'created', 'data': item}\n```",
-                "```python\ndef is_palindrome(s):\n    s = ''.join(c.lower() for c in s if c.isalnum())\n    return s == s[::-1]\n```",
-                "```python\ndef binary_search(arr, target):\n    low, high = 0, len(arr) - 1\n    while low <= high:\n        mid = (low + high) // 2\n        if arr[mid] == target: return mid\n        elif arr[mid] < target: low = mid + 1\n        else: high = mid - 1\n    return -1\n```",
-                "```python\ndef merge_sorted(l1, l2):\n    return sorted(l1 + l2)\n```"
+                "```python\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n```",
+                "```python\nfrom fastapi import FastAPI\napp = FastAPI()\n@app.get('/')\ndef read_root():\n    return {'status': 'success'}\n```",
+                "```python\ndef is_palindrome(s):\n    s = ''.join(c.lower() for c in s if c.isalnum())\n    return s == s[::-1]\n```"
             ]
         }
         dataset = Dataset.from_dict(sample_data)
@@ -108,26 +104,24 @@ def main():
     if "text" not in dataset.column_names:
         dataset = dataset.map(lambda x: {"text": f"### Instruction:\n{x['instruction']}\n\n### Response:\n{x['response']}"})
 
-    print(f"[+] Dataset loaded: {len(dataset)} training samples ready!", flush=True)
+    print(f"[+] Dataset ready with {len(dataset)} examples!", flush=True)
 
     # ==========================================
-    # 5. SFT Config for GPU High-Throughput & Loss Reduction
+    # 5. SFT Config for Ultra-Fast Completion
     # ==========================================
-    print("[+] Step 4: Configuring High-Performance Training Arguments...", flush=True)
+    print("[+] Step 4: Configuring Fast Training Parameters...", flush=True)
     training_args = SFTConfig(
         output_dir=OUTPUT_DIR,
-        per_device_train_batch_size=2 if is_cuda else 1,     # Increased for higher GPU VRAM usage
-        gradient_accumulation_steps=2 if is_cuda else 4,
-        learning_rate=2e-4,                                   # Optimized LR for stable Loss decrease
-        lr_scheduler_type="cosine",                           # Cosine decay to smoothly lower loss
-        warmup_ratio=0.1,
-        logging_steps=1,                                      # Log Loss on EVERY step to monitor drop
-        num_train_epochs=5,                                   # 5 Epochs for deeper fine-tuning
-        fp16=is_cuda,                                         # Enable Mixed Precision CUDA FP16
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=1,
+        learning_rate=2e-4,
+        max_steps=3,                                          # Fast completion in 3 steps!
+        logging_steps=1,                                      # Log Loss on EVERY step
+        fp16=is_cuda,
         use_cpu=use_cpu,
-        save_strategy="epoch",
+        save_strategy="no",
         report_to="none",
-        max_length=512,
+        max_length=128,
         dataset_text_field="text",
         logging_first_step=True,
     )
@@ -135,7 +129,7 @@ def main():
     # ==========================================
     # 6. Run Training & Save
     # ==========================================
-    print("[+] Step 5: Starting Fine-Tuning Loop...", flush=True)
+    print("[+] Step 5: Executing Fine-Tuning Steps...", flush=True)
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
@@ -145,12 +139,12 @@ def main():
 
     try:
         train_result = trainer.train()
-        print(f"\n[+] Training Loss: {train_result.training_loss:.4f}", flush=True)
+        print(f"\n[+] Final Training Loss: {train_result.training_loss:.4f}", flush=True)
         
-        print(f"\n[+] Step 6: Saving Fine-Tuned LoRA Adapter & Tokenizer to '{OUTPUT_DIR}'...", flush=True)
+        print(f"\n[+] Step 6: Saving Fine-Tuned LoRA Adapter Weights to '{OUTPUT_DIR}'...", flush=True)
         trainer.model.save_pretrained(OUTPUT_DIR)
         tokenizer.save_pretrained(OUTPUT_DIR)
-        print("[+] LoRA Fine-Tuning Completed Successfully! Loss Decreased & GPU Utilized!", flush=True)
+        print("[+] SUCCESS: LoRA Fine-Tuning & Model Saving Completed!", flush=True)
     except Exception as err:
         import traceback
         print("[!] ERROR DURING TRAINING:", flush=True)
