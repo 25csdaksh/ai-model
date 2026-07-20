@@ -261,18 +261,29 @@ with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio") as demo:
             clear_btn = gr.Button("🗑️ Clear Chat History", variant="secondary")
 
     def user_send(user_message, history):
-        return "", history + [[user_message, None]]
+        return "", history + [{"role": "user", "content": user_message}]
 
     def bot_respond(history, system_prompt, temperature, max_tokens, hf_token):
-        user_message = history[-1][0]
-        history[-1][1] = ""
+        user_message = history[-1]["content"]
         session_id = "default_session"
         database.save_message(session_id, "user", user_message)
+        
+        history.append({"role": "assistant", "content": ""})
         final_response = ""
-        for response in generate_code_response(user_message, history[:-1], system_prompt, temperature, max_tokens, hf_token):
-            history[-1][1] = response
+        
+        # Build prompt messages
+        formatted_history = []
+        for item in history[:-2]:
+            if item["role"] == "user":
+                formatted_history.append([item["content"], None])
+            elif item["role"] == "assistant" and formatted_history and formatted_history[-1][1] is None:
+                formatted_history[-1][1] = item["content"]
+                
+        for response in generate_code_response(user_message, formatted_history, system_prompt, temperature, max_tokens, hf_token):
+            history[-1]["content"] = response
             final_response = response
             yield history
+            
         database.save_message(session_id, "assistant", final_response)
 
     msg.submit(user_send, [msg, chatbot], [msg, chatbot], queue=False).then(
