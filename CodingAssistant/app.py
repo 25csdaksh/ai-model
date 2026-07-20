@@ -1,9 +1,14 @@
 import os
 import sys
 import time
+import uuid
 # pyrefly: ignore [missing-import]
 import gradio as gr
 import requests
+import database
+
+# Initialize SQLite database
+database.init_db()
 
 # App Configuration
 MODEL_ID = "Qwen/Qwen2.5-Coder-7B-Instruct"
@@ -261,9 +266,14 @@ with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio") as demo:
     def bot_respond(history, system_prompt, temperature, max_tokens, hf_token):
         user_message = history[-1][0]
         history[-1][1] = ""
+        session_id = "default_session"
+        database.save_message(session_id, "user", user_message)
+        final_response = ""
         for response in generate_code_response(user_message, history[:-1], system_prompt, temperature, max_tokens, hf_token):
             history[-1][1] = response
+            final_response = response
             yield history
+        database.save_message(session_id, "assistant", final_response)
 
     msg.submit(user_send, [msg, chatbot], [msg, chatbot], queue=False).then(
         bot_respond, [chatbot, system_prompt_input, temperature_slider, max_tokens_slider, hf_token_input], chatbot
