@@ -182,7 +182,7 @@ body, .gradio-container {
 }
 """
 
-with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio", theme=gr.themes.Soft(primary_hue="indigo"), css=custom_css) as demo:
+with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio") as demo:
     gr.HTML("""
     <div style="text-align: center; padding: 15px 0;">
         <h1 class="header-title">⚡ Qwen2.5-Coder-7B-Instruct AI Studio</h1>
@@ -194,8 +194,6 @@ with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio", theme=gr.themes.Soft(primary_
         with gr.Column(scale=3):
             chatbot = gr.Chatbot(
                 height=550,
-                show_copy_button=True,
-                bubble_full_width=False,
                 avatar_images=(None, "https://raw.githubusercontent.com/QwenLM/Qwen/main/assets/qwen_logo.png")
             )
             with gr.Row():
@@ -277,4 +275,4 @@ with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio", theme=gr.themes.Soft(primary_
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
+    demo.launch(server_name="127.0.0.1", server_port=7860, share=False, theme=gr.themes.Soft(primary_hue="indigo"), css=custom_css)
