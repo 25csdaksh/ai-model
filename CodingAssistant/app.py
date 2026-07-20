@@ -18,7 +18,7 @@ def load_local_fine_tuned_model():
         from peft import PeftModel
 
         base_model_name = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-        lora_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "finetuned_qwen_lora"))
+        lora_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models", "coding-assistant"))
 
         if os.path.exists(lora_dir):
             print(f"[+] Web App loading Fine-Tuned GPU model on {device.upper()}...", flush=True)

@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 BASE_MODEL = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-LORA_PATH = "./finetuned_qwen_lora"
+LORA_PATH = "models/coding-assistant"
 
 def main():
     print("=" * 60)

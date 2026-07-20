@@ -22,7 +22,7 @@ torch.set_num_threads(num_cores)
 # ==========================================
 # Using 0.5B Model: Ultra lightweight, 5x faster on CPU, no memory errors
 MODEL_NAME = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-OUTPUT_DIR = "./finetuned_qwen_lora"
+OUTPUT_DIR = "models/coding-assistant"
 
 # Custom Progress Callback to print step progress immediately
 class LiveProgressCallback(TrainerCallback):

@@ -26,7 +26,7 @@ def init_gpu_model():
         from peft import PeftModel
 
         base_path = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-        lora_path = os.path.join(DIRECTORY, "finetuned_qwen_lora")
+        lora_path = os.path.join(DIRECTORY, "models", "coding-assistant")
 
         if os.path.exists(lora_path):
             print(f"[+] Loading Fine-Tuned LoRA model on {device.upper()} ({torch.cuda.get_device_name(0) if device == 'cuda' else 'CPU'})...")
