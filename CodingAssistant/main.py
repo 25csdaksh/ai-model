@@ -1,6 +1,6 @@
-# pyrefly: ignore [missing-import]
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer  # pyrefly: ignore [missing-import]
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 model_name = "Qwen/Qwen2.5-Coder-7B-Instruct"
 

@@ -1,4 +1,3 @@
-# pyrefly: ignore [missing-import]
 import sqlite3
 import os
 import json

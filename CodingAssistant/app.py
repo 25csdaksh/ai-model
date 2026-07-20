@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import uuid
-# pyrefly: ignore [missing-import]
 import gradio as gr
 import requests
 import database
@@ -296,4 +295,4 @@ with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio") as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(server_name="127.0.0.1", server_port=7860, share=False, theme=gr.themes.Soft(primary_hue="indigo"), css=custom_css)
+    demo.launch(server_name="127.0.0.1", share=False, theme=gr.themes.Soft(primary_hue="indigo"), css=custom_css)
