@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
