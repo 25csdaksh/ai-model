@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+# pyrefly: ignore [missing-import]
 import gradio as gr
 import requests
 
@@ -181,7 +182,7 @@ body, .gradio-container {
 }
 """
 
-with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio", theme=gr.themes.Soft(primary_hue="indigo", dark_mode=True), css=custom_css) as demo:
+with gr.Blocks(title="Qwen2.5-Coder-7B AI Studio", theme=gr.themes.Soft(primary_hue="indigo"), css=custom_css) as demo:
     gr.HTML("""
     <div style="text-align: center; padding: 15px 0;">
         <h1 class="header-title">⚡ Qwen2.5-Coder-7B-Instruct AI Studio</h1>
