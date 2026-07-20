@@ -1,43 +1,44 @@
 import os
 import sys
-# pyrefly: ignore [missing-import]
 import torch
-# pyrefly: ignore [missing-import]
 from datasets import load_dataset, Dataset
-# pyrefly: ignore [missing-import]
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    TrainerCallback
 )
-# pyrefly: ignore [missing-import]
 from peft import LoraConfig, get_peft_model, TaskType
-# pyrefly: ignore [missing-import]
 from trl import SFTTrainer, SFTConfig
 
 # Force immediate unbuffered stdout printing
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
+# Optimize CPU Threads
+num_cores = os.cpu_count() or 4
+torch.set_num_threads(num_cores)
+
 # ==========================================
 # 1. Fast CPU/GPU Fine-Tuning Config
 # ==========================================
-MODEL_NAME = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+# Using 0.5B Model: Ultra lightweight, 5x faster on CPU, no memory errors
+MODEL_NAME = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
 OUTPUT_DIR = "./finetuned_qwen_lora"
-DATASET_PATH = "sample"
+
+# Custom Progress Callback to print step progress immediately
+class LiveProgressCallback(TrainerCallback):
+    def on_step_end(self, args, state, control, **kwargs):
+        step = state.global_step
+        max_steps = state.max_steps
+        loss_str = ""
+        if state.log_history:
+            latest = state.log_history[-1]
+            if "loss" in latest:
+                loss_str = f" | Loss: {latest['loss']:.4f}"
+        print(f"👉 [Progress] Step {step}/{max_steps} completed!{loss_str}", flush=True)
 
 def main():
     print(f"[+] Starting Fast LoRA Fine-Tuning Pipeline: {MODEL_NAME}", flush=True)
-
-    # ==========================================
-    # 2. Load Tokenizer & Model
-    # ==========================================
-    print("[+] Step 1: Loading Tokenizer & Model into memory...", flush=True)
-    tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_NAME,
-        trust_remote_code=True,
-        padding_side="right"
-    )
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    print(f"[+] CPU Threads Configured: {num_cores} cores", flush=True)
 
     # Check CUDA Availability
     is_cuda = torch.cuda.is_available()
@@ -53,6 +54,18 @@ def main():
         torch_dtype = torch.float32
         use_cpu = True
 
+    # ==========================================
+    # 2. Load Tokenizer & Model
+    # ==========================================
+    print("[+] Step 1: Loading Tokenizer & Model into memory...", flush=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME,
+        trust_remote_code=True,
+        padding_side="right"
+    )
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
         dtype=torch_dtype,
@@ -67,7 +80,7 @@ def main():
     # ==========================================
     print("[+] Step 2: Applying LoRA Target Adapter Configuration...", flush=True)
     peft_config = LoraConfig(
-        r=8,                           # Fast rank
+        r=8,
         lora_alpha=16,
         target_modules=["q_proj", "v_proj"],
         lora_dropout=0.05,
@@ -82,27 +95,20 @@ def main():
     # 4. Load Dataset
     # ==========================================
     print("[+] Step 3: Preparing Training Dataset...", flush=True)
-    if os.path.exists(DATASET_PATH) and DATASET_PATH.endswith(".json"):
-        dataset = load_dataset("json", data_files=DATASET_PATH, split="train")
-    elif os.path.exists(DATASET_PATH) and DATASET_PATH.endswith(".csv"):
-        dataset = load_dataset("csv", data_files=DATASET_PATH, split="train")
-    else:
-        sample_data = {
-            "instruction": [
-                "Write a Python function for Fibonacci series.",
-                "Create a REST API endpoint using FastAPI.",
-                "Write a function to check if a string is a palindrome."
-            ],
-            "response": [
-                "```python\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n```",
-                "```python\nfrom fastapi import FastAPI\napp = FastAPI()\n@app.get('/')\ndef read_root():\n    return {'status': 'success'}\n```",
-                "```python\ndef is_palindrome(s):\n    s = ''.join(c.lower() for c in s if c.isalnum())\n    return s == s[::-1]\n```"
-            ]
-        }
-        dataset = Dataset.from_dict(sample_data)
-
-    if "text" not in dataset.column_names:
-        dataset = dataset.map(lambda x: {"text": f"### Instruction:\n{x['instruction']}\n\n### Response:\n{x['response']}"})
+    sample_data = {
+        "instruction": [
+            "Write a Python function for Fibonacci series.",
+            "Create a REST API endpoint using FastAPI.",
+            "Write a function to check if a string is a palindrome."
+        ],
+        "response": [
+            "```python\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n```",
+            "```python\nfrom fastapi import FastAPI\napp = FastAPI()\n@app.get('/')\ndef read_root():\n    return {'status': 'success'}\n```",
+            "```python\ndef is_palindrome(s):\n    s = ''.join(c.lower() for c in s if c.isalnum())\n    return s == s[::-1]\n```"
+        ]
+    }
+    dataset = Dataset.from_dict(sample_data)
+    dataset = dataset.map(lambda x: {"text": f"### Instruction:\n{x['instruction']}\n\n### Response:\n{x['response']}"})
 
     print(f"[+] Dataset ready with {len(dataset)} examples!", flush=True)
 
@@ -115,7 +121,7 @@ def main():
         per_device_train_batch_size=1,
         gradient_accumulation_steps=1,
         learning_rate=2e-4,
-        max_steps=3,                                          # Fast completion in 3 steps!
+        max_steps=3,                                          # Fast 3 steps completion!
         logging_steps=1,                                      # Log Loss on EVERY step
         fp16=is_cuda,
         use_cpu=use_cpu,
@@ -124,6 +130,7 @@ def main():
         max_length=128,
         dataset_text_field="text",
         logging_first_step=True,
+        disable_tqdm=False
     )
 
     # ==========================================
@@ -135,6 +142,7 @@ def main():
         train_dataset=dataset,
         peft_config=peft_config,
         args=training_args,
+        callbacks=[LiveProgressCallback()]
     )
 
     try:
